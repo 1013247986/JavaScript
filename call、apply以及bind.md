@@ -38,3 +38,5 @@ GetAxios.call(this, "divimage/obtain", {}).then(data => {
 });
 ```
 
+**还可以用let _this = this 来用使用外面的this**
+
