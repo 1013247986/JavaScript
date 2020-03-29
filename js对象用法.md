@@ -100,7 +100,7 @@ console.log(Object.getOwnPropertyDescriptor(obj, 'foo'))
     configurable: true
     enumerable: true //为felsa时就是不可枚举属性
     value: 123  //键值对的值
-    writable: true 
+    writable: true // 能否修改值
     __proto__: Object
 }
 ```
@@ -177,14 +177,243 @@ b 2
 c 3
 ```
 
-##Object.defineProperty()语法说明
+## Object.defineProperty(obj ，prop ，desc)语法说明
 
-数据描述符 --特有的两个属性`（value,writable）`
 
-```csharp
+1. obj 需要定义属性的当前对象
+2. prop 当前需要定义的属性名
+3. desc 属性描述符
+
+**数据描述符 --特有的两个属性`（value,writable）`**
+
+* `writable: false` // 是否可以改变 数据描述符
+* `configrable :true` // 描述属性是否配置，以及可否删除
+* `value: ? `//属性值
+* `delete Person.name`  //删除属性
+* `enumerable ：true `// 是否出现在for in或Object.keys()遍历中，自身是否可枚举
+
+```js
 let Person = {}
 Object.defineProperty(Person, 'name', {
    value: 'jack',
-   writable: true // 是否可以改变
+   writable: true, // 是否可以改变 数据描述符
+   configrable :false // 描述属性是否配置，以及可否删除 可否属性定义修改
+})
+ delete Person.name   //Cannot delete property 'name' of #<Object>
+
+Object.defineProperty(Person, 'name',{ //也不能重新定义属性
+    value:'rose'    //Cannot delete property：name
 })
 ```
+
+当writable为false时可以通过属性定义的方式修改name属性值
+
+```js
+Object.defineProperty(Person, 'name', {
+   value: 'jack',
+   writable: false, // 是否可以改变 数据描述符
+   configrable :true, // 描述属性是否配置，以及可否删除 可否属性定义修改
+   enumerable :true // 自身是否能被枚举
+})
+
+Object.defineProperty(Person, 'name',{
+    value:'rose' 
+})
+console.log(Person.name) // rose
+```
+
+
+
+#### configurable属性总结：
+
+**configurable: false 时，不能删除当前属性，且不能重新配置当前属性的描述符(有一个小小的意外：可以把writable的状态由true改为false,但是无法由false改为true),但是在writable: true的情况下，可以改变value的值**
+
+**configurable: true时，可以删除当前属性，可以配置当前属性所有描述符。**
+
+###注意事项
+
+```js
+let Person = {}
+
+person.gender = "male"
+//等价于
+Object.defineProperty(Person,"gender",{
+    value:"male", //  属性值
+    configurable:true, // 能否被删除 可否属性定义修改
+    writable:true, //   是否可以改变
+    enumerable:true //  自身可否被枚举
+})
+```
+
+
+
+```js
+Object.defineProperty(Person,"age",{
+    value:"26", //  属性值
+})
+//等价于
+Object.defineProperty(Person,"gender",{
+    value:"26", //  属性值
+    configurable:false, // 能否被删除 可否属性定义修改
+    writable:false, //   是否可以改变
+    enumerable:false //  自身可否被枚举
+})
+```
+
+### 不变性
+
+####对象常量
+结合writable: false 和 configurable: false 就可以创建一个真正的常量属性（不可修改，不可重新定义或者删除）
+
+####禁止扩展
+如果你想禁止一个对象添加新属性并且保留已有属性，就可以使用`Object.preventExtensions(...)`
+
+```js
+let Person={
+  name:'Jack'
+}
+Object.preventExtensions(Person)
+Object.gender = 'male' // Can`t add Property gender,Object is not extensible
+console.log(Person.gender)
+```
+
+   **但是可以配置**
+
+```js
+let Person={
+  name:'Jack'
+}
+Object.preventExtensions(Person) // 禁止扩展
+// 但是仍然可以进行配置
+Object.defineProperty(Person,"name",{
+    value:"rose", //  属性值
+    configurable:false, // 能否被删除 可否属性定义修改
+    writable:false, //   是否可以改变
+})
+// 输出配置的结果
+console.log(Person.name)   //rose
+// 不能进行扩展
+Person.gender = 'male'
+console.log(Person.gender) //undefined
+```
+
+**在非严格模式下，创建属性gender会静默失败，在严格模式下，将会抛出异常**
+
+####密封
+`Object.seal()`会创建一个密封的对象，这个方法实际上会在一个现有对象上调用`object.preventExtensions(...)`并把所有现有属性标记为`configurable:false`。
+
+```js
+let Person = {
+  name:'Jack'
+}
+Object.seal(Person)
+Person.gender = 'male'
+// 不能扩展属性
+console.log(Person.gender) // undefined
+// 再次验证
+console.log(Object.keys(Person)) ['name']
+// 不能再次配置属性
+Object.defineProperty(Person,'name',{ //Can`t add Property:name
+    name:'rose',
+    configurable:true
+})
+```
+
+**所以， 密封之后不仅不能添加新属性，也不能重新配置或者删除任何现有属性（虽然可以改属性的值）**
+
+####冻结
+
+```js
+let Person = {
+  name:'Jack'
+}
+Object.freeze(Person)
+Person.gender = 'male'
+ // 不能扩展属性
+console.log(Person.gender) // undefined
+ // 再次验证
+console.log(Object.keys(Person)) ['name']
+Person.name='Tom'
+ // 不可修改已有属性的值
+console.log(Person.name) // Jack
+ // 不能再次配置属性
+Object.defineProperty(Person,'name',{ //Can`t add Property:name
+    name:'rose',
+    configurable:true
+})
+```
+
+* 这个方法是你可以应用在对象上级别最高的不可变性，它会禁止对于对象本身及其任意直接属性的修改（但是这个对象引用的其他对象是不受影响的）
+
+####重新定义属性名
+
+```js
+let proto = Object.defineProperties({},{
+  foo:{
+     value:'a',
+     writable:false,
+     // 只读
+     configurable:true
+     // 可配置
+  }
+})
+let obj = Object.create(proto)
+console.log(obj) // {}
+Object.defineProperty(obj.'foo',{
+    value:'b' // 通过自定义的形式创建了自身属性               
+})
+console.log(obj.foo) // b
+console.log(obj.foo) // a
+obj.foo = 'hello' // Cannot assign to read only property 'foo' fo object
+```
+
+赋值运算符不会改变原型链上的属性
+不能通过为`obj.foo`赋值来改变`proto.foo`的值。这种操作只会在`obj`上新建一个自身属性
+
+```js
+let obj = {
+  name:'Jack'
+}
+// 等同于
+let obj = new Object()
+Object.defineProperties(obj,{
+    name:{
+        value:'Jack',
+        enumerable:true,
+        configurable:true,
+        writable:true
+    }
+})
+```
+
+记住以下两种形式的区别：
+
+```js
+let obj = {}
+obj.name='Jack'
+
+// 上面的代码等同于
+
+let obj = {}
+Object.defineProperty(obj,'name',{
+        value:'Jack',
+        enumerable:true,
+        configurable:true,
+        writable:true
+})
+
+// 另一方面
+Object.defineProperty(obj,'name',{
+        value:'Jack'
+})
+
+// 上面的代码等同于
+
+Object.defineProperty(obj,'name',{
+        value:'Jack',
+        enumerable:false,
+        configurable:false,
+        writable:false
+})
+```
+
