@@ -86,6 +86,12 @@ let x;
 
 工厂模式、构造函数 直接扩号 或者new一个
 
+### Object.is(value1,value2) 判断两个值是否相等
+
+列：解决了NaN不等于自身，完善-0和+0相等的问题   相等为true 不相等为false
+
+
+
 ## 对象属性描述介绍
 
 ###获取对对象属性的描述对象
@@ -109,7 +115,7 @@ console.log(Object.getOwnPropertyDescriptor(obj, 'foo'))
 
 
 
-## 便利对象方法
+## 遍历对象方法
 
 ###第一种：for...in  只遍历对象自身的和继承的可枚举的属性
 
